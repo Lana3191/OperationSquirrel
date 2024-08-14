@@ -18,6 +18,7 @@
 #include "attitude_controller.h"
 #include "follow_target.h"
 #include "system_controller.h"
+#include "pid_controller.h"
 
 /********************************************************************************
  * Imported objects
@@ -28,6 +29,10 @@ extern float vx_adjust;
 extern float vy_adjust;
 extern float vz_adjust;
 extern float dt_25ms;
+extern uint16_t mav_veh_rngfdr_min_distance;
+extern uint16_t mav_veh_rngfdr_max_distance;
+extern uint16_t mav_veh_rngfdr_current_distance;
+extern int32_t mav_veh_rel_alt;
 
 /********************************************************************************
  * Exported objects
@@ -48,6 +53,7 @@ public:
 
     static void dtrmn_vehicle_action(void);
     static void follow_mode(void);
+    static void height_control(void);
 
     static void cmd_position_NED(float position_target[3]);
     static void cmd_velocity_NED(float velocity_target[3]);

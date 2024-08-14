@@ -26,8 +26,11 @@
  * Object definitions
  ********************************************************************************/
 DebugTerm VehStateInfo("");
+PID height_ctrl;
+
 bool takeoff_dbc;
 uint16_t takeoff_dbc_cnt;
+float z_adjust;
 
 /********************************************************************************
  * Calibration definitions
@@ -129,6 +132,67 @@ void VehicleController::follow_mode(void)
     }
 }
 
+/********************************************************************************
+ * Function: height_control
+ * Description: Keep drone height at a set point.
+ ********************************************************************************/
+void VehicleController::height_control(void)
+{
+    float target_velocity[3] = {0.0, 0.0, 0.0};
+    const float w1 = 1.0;
+    const float Kp_z_height = 0.001;
+    const float Ki_z_height = 0.0;
+    const float Kd_z_height = 0.0;
+    const uint16_t veh_height_target = (uint16_t)200;
+    uint16_t veh_height_err = (uint16_t)0;
+    bool veh_too_high = false;
+
+    veh_too_high = (mav_veh_rngfdr_current_distance >= veh_height_target);
+
+    DebugTerm rngfndr("/dev/pts/5");
+
+    /*
+    Need to account for max and min values of the rangefinder or gps.
+    Max value of Terabee-60m I2C has max range of 6000cm, and min detectable of of 50cm.
+    Need to filter out values above this or jumps to 6000cm or higher (occurs when sensor gets a bad
+    reading due to the surface quality).
+    Need to account for no resolution below 50cm.
+    */
+
+    if (mav_veh_rngfdr_current_distance > (uint16_t)0 && veh_too_high == true)
+    {
+        veh_height_err = mav_veh_rngfdr_current_distance - veh_height_target;
+    }
+    else if (mav_veh_rngfdr_current_distance > (uint16_t)0 && veh_too_high == false)
+    {
+        veh_height_err = veh_height_target - mav_veh_rngfdr_current_distance;
+    }
+    else
+    {
+        veh_height_err = (uint16_t)0;
+    }
+
+    /* remember in NED frame down is positive, and up is negative */
+    if (veh_too_high)
+    {
+        z_adjust = height_ctrl.pid_controller_3d(Kp_z_height, Ki_z _height, Kd_z_height,
+                                                 (float)veh_height_err, 0.0, 0.0,
+                                                 w1, 0.0, 0.0, CONTROL_DIM::Z);
+    }
+    else
+    {
+        z_adjust = -height_ctrl.pid_controller_3d(Kp_z_height, Ki_z_height, Kd_z_height,
+                                                  (float)veh_height_err, 0.0, 0.0,
+                                                  w1, 0.0, 0.0, CONTROL_DIM::Z);
+    }
+
+    target_velocity[2] = z_adjust;
+
+    rngfndr.cpp_cout(std::to_string(target_velocity[2]));
+
+    VehicleController::cmd_velocity_NED(target_velocity);
+}
+
 #endif // USE_JETSON
 
 /********************************************************************************
@@ -139,6 +203,7 @@ bool VehicleController::vehicle_control_init(void)
 {
     takeoff_dbc = false;
     takeoff_dbc_cnt = 200;
+    z_adjust = (float)0.0;
 
     return true;
 }
@@ -149,6 +214,10 @@ bool VehicleController::vehicle_control_init(void)
  ********************************************************************************/
 void VehicleController::vehicle_control_loop(void)
 {
+    DebugTerm rngfndr("/dev/pts/5");
+
+    rngfndr.cpp_cout("Height rangefinder, Height gps: " + std::to_string(mav_veh_rngfdr_current_distance) + ", " + std::to_string(mav_veh_rel_alt));
+
     if (system_state == SYSTEM_STATE::INIT)
     {
         MavCmd::set_mode_GUIDED();
@@ -159,7 +228,7 @@ void VehicleController::vehicle_control_loop(void)
     }
     else if (system_state == SYSTEM_STATE::STANDBY)
     {
-        MavCmd::takeoff_GPS_long((float)2.0);
+        MavCmd::takeoff_GPS_long((float)3.5);
     }
     else if (system_state == SYSTEM_STATE::IN_FLIGHT_GOOD)
     {
@@ -177,7 +246,7 @@ void VehicleController::vehicle_control_loop(void)
 
         if (takeoff_dbc)
         {
-            follow_mode();
+            height_control();
         }
 
 #elif USE_WSL

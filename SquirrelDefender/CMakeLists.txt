@@ -5,8 +5,10 @@ cmake_minimum_required(VERSION 3.1)
 project(SquirrelDefender)
 
 # Choose ONLY ONE platform for the build 
-option(JETSON_B01 "Compiling for Jetson Nano B01" ON)
+option(JETSON_B01 "Compiling for Jetson Nano B01" OFF)
 option(WSL "Compiling for WSL" OFF)
+option(WIN32_SIM "Compiling for Windows simulated environment" OFF)
+option(WIN32_HARD "Compiling for Windows with connected physical devices" ON)
 
 # Ensure only one build platform is selected
 set(BUILD_PLATFORMS 0)
@@ -15,6 +17,14 @@ if(JETSON_B01)
 endif()
 
 if(WSL)
+    math(EXPR BUILD_PLATFORMS "${BUILD_PLATFORMS} + 1")
+endif()
+
+if(WIN32_SIM)
+    math(EXPR BUILD_PLATFORMS "${BUILD_PLATFORMS} + 1")
+endif()
+
+if(WIN32_HARD)
     math(EXPR BUILD_PLATFORMS "${BUILD_PLATFORMS} + 1")
 endif()
 
@@ -59,6 +69,12 @@ if (JETSON_B01)
 elseif(WSL)
     add_definitions(-DWSL)
     add_definitions(-DUSE_TCP)
+elseif(WIN32_SIM)
+    add_definitions(-DWIN32_SIM)
+    add_definitions(-DUSE_TCP)
+elseif(WIN32_HARD)
+    add_definitions(-DWIN32_HARD)
+    add_definitions(-DUSE_UART)
 endif()
 
 # Directories common to all builds
@@ -117,4 +133,7 @@ if (JETSON_B01)
                         jsoncpp)
 elseif(WSL)
     add_executable(squirreldefender ${SOURCES} ${HEADERS})
+elseif(WIN32_SIM OR WIN32_HARD)
+    add_executable(squirreldefender ${SOURCES} ${HEADERS})
+    target_link_libraries(squirreldefender PRIVATE Ws2_32)  
 endif()

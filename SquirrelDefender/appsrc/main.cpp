@@ -106,39 +106,14 @@ int main(void)
         return 1;
     }
 
-#ifdef JETSON_B01
-
-    while (!stop_program && !save_button_press)
-
-#else
-
     while (!stop_program)
-
-#endif // JETSON_B01
-
     {
         std::lock_guard<std::mutex> lock(mutex_main);
         MainAppTime.calc_elapsed_time();
         SystemController::system_control_loop();
         MavMsg::mav_comm_loop();
 
-#ifdef JETSON_B01
-
-        Video::video_proc_loop();
-        Detection::detection_loop();
-        VehicleController::vehicle_control_loop();
-        Video::video_output_loop();
-        StatusIndicators::io_loop();
-
-#elif WSL
-
-        VehicleController::vehicle_control_loop();
-
-#endif // JETSON_B01
-
         app_first_init();
-
-        DataLogger::data_log_loop();
 
         MainAppTime.loop_rate_controller();
         MainAppTime.calc_loop_start_time();

@@ -151,19 +151,19 @@ void VehicleController::vehicle_control_loop(void)
 {
     if (system_state == SYSTEM_STATE::INIT)
     {
-        MavCmd::set_mode_GUIDED();
+        // MavCmd::set_mode_GUIDED();
     }
     else if (system_state == SYSTEM_STATE::PRE_ARM_GOOD)
     {
-        MavCmd::arm_vehicle();
+        // MavCmd::arm_vehicle();
     }
     else if (system_state == SYSTEM_STATE::STANDBY)
     {
-        MavCmd::takeoff_GPS_long((float)2.0);
+        // MavCmd::takeoff_GPS_long((float)2.0);
     }
     else if (system_state == SYSTEM_STATE::IN_FLIGHT_GOOD)
     {
-#ifdef JETSON_B01
+#ifdef JETSON_B01 || WIN32_HARD
 
         if (takeoff_dbc_cnt > 0)
         {
@@ -177,10 +177,10 @@ void VehicleController::vehicle_control_loop(void)
 
         if (takeoff_dbc)
         {
-            follow_mode();
+            // follow_mode();
         }
 
-#elif WSL
+#elif WSL || WIN32_SIM
 
         if (takeoff_dbc_cnt > 0)
         {
@@ -194,7 +194,7 @@ void VehicleController::vehicle_control_loop(void)
 
         if (takeoff_dbc)
         {
-            test_flight();
+            // test_flight();
         }
 
 #endif // JETSON_B01

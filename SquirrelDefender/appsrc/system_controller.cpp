@@ -91,7 +91,7 @@ int SystemController::system_init(void)
         return 1;
     }
 
-#elif WSL
+#elif WIN32_HARD
 
     if (!MavMsg::mav_comm_init() ||
         /* !DataLogger::data_log_init() || */
@@ -123,11 +123,11 @@ int SystemController::system_state_machine(void)
         bool mav_type_is_quad = (mav_veh_type == MAV_TYPE_QUADROTOR && mav_veh_autopilot_type == MAV_AUTOPILOT_ARDUPILOTMEGA);
         bool prearm_checks = false;
 
-#ifdef JETSON_B01
+#ifdef JETSON_B01 || WIN32_HARD
 
         prearm_checks = ((mav_veh_sys_stat_onbrd_cntrl_snsrs_present & MAV_SYS_STATUS_PREARM_CHECK) != 0 && valid_image_rcvd);
 
-#elif WSL
+#elif WSL || WIN32_SIM
 
         prearm_checks = ((mav_veh_sys_stat_onbrd_cntrl_snsrs_present & MAV_SYS_STATUS_PREARM_CHECK) != 0);
 

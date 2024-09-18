@@ -181,7 +181,7 @@ bool DataLogger::data_log_init(void)
                     "mav_veh_repr_offset_q[2]",
                     "mav_veh_repr_offset_q[3]"});
 
-#elif WSL
+#elif defined(WSL)
 
     data.push_back({"Time",
                     "Voltage Battery",

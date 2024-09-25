@@ -1,4 +1,4 @@
-#ifdef JETSON_B01
+#ifdef ENABLE_CV
 
 /********************************************************************************
  * @file    videoIO.cpp
@@ -27,17 +27,47 @@
 bool valid_image_rcvd;
 bool display_stream_created;
 bool file_stream_created;
+std::string base_path = "../data/";
+
+#ifdef JETSON_B01
+
 videoSource *input;
 videoOutput *output_vid_file;
 videoOutput *output_vid_disp;
 uchar3 *image;
 uint32_t input_video_width;
 uint32_t input_video_height;
-std::string base_path = "../data/";
+
+#elif _WIN32
+
+cv::Mat image;
+cv::VideoCapture cap;
+
+
+#else
+
+
+
+#endif // JETSON_B01
+
 
 /********************************************************************************
  * Calibration definitions
  ********************************************************************************/
+#ifdef JETSON_B01
+
+// Nothing to put here
+
+#elif _WIN32
+
+float input_video_width = 640.0;
+float input_video_height = 640.0;
+
+#else
+
+
+
+#endif // JETSON_B01
 
 /********************************************************************************
  * Function definitions
@@ -61,6 +91,8 @@ Video::~Video(void) {}
  ********************************************************************************/
 bool Video::create_input_video_stream(void)
 {
+#ifdef JETSON_B01
+
     videoOptions options;
 
     options.resource = URI("csi://0");
@@ -83,6 +115,21 @@ bool Video::create_input_video_stream(void)
         LogError("detectnet:  failed to create input stream\n");
         return false;
     }
+
+#elif _WIN32
+
+    cap.open(0);  // Open default webcam
+    if (!cap.isOpened()) 
+    {
+        std::cout << "Error: Could not open camera" << std::endl;
+        return false;
+    }
+
+#else
+
+
+
+#endif // JETSON_B01
 
     return true;
 }
@@ -121,6 +168,8 @@ std::string generate_unique_file_name(const std::string &base_name, const std::s
  ********************************************************************************/
 bool Video::create_output_vid_stream(void)
 {
+#ifdef JETSON_B01
+
     std::string base_path = "file:///home/crose72/Documents/GitHub/OperationSquirrel/SquirrelDefender/data/";
     std::string base_name = "output";
     std::string extension = ".mp4";
@@ -149,7 +198,19 @@ bool Video::create_output_vid_stream(void)
         return false;
     }
 
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
+
     file_stream_created = true;
+
+
 
     return true;
 }
@@ -161,6 +222,8 @@ bool Video::create_output_vid_stream(void)
  ********************************************************************************/
 bool Video::create_display_video_stream(void)
 {
+#ifdef JETSON_B01
+
     videoOptions options;
 
     options.resource = "display://0"; // Specify the display URI
@@ -183,6 +246,16 @@ bool Video::create_display_video_stream(void)
         return false;
     }
 
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
+
     display_stream_created = true;
 
     return true;
@@ -194,6 +267,8 @@ bool Video::create_display_video_stream(void)
  ********************************************************************************/
 bool Video::capture_image(void)
 {
+#ifdef JETSON_B01
+
     int status = 0;
     uchar3 *temp_image = NULL;
 
@@ -211,8 +286,25 @@ bool Video::capture_image(void)
         valid_image_rcvd = false;
         return false; // Return false if the image is not valid
     }
-
+    
     image = temp_image;
+
+#elif _WIN32
+
+    cap >> image;  // Capture image from the webcam
+
+    if (image.empty()) {
+        std::cout << "Error: Could not capture image" << std::endl;
+        return false;
+    }
+
+#else
+
+
+
+#endif // JETSON_B01
+
+    
     valid_image_rcvd = true;
 
     return true;
@@ -224,6 +316,8 @@ bool Video::capture_image(void)
  ********************************************************************************/
 bool Video::save_video(void)
 {
+#ifdef JETSON_B01
+
     // render output_vid_disp to the display
     if (output_vid_file != NULL)
     {
@@ -243,6 +337,16 @@ bool Video::save_video(void)
         }
     }
 
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
+
     return true;
 }
 
@@ -252,6 +356,8 @@ bool Video::save_video(void)
  ********************************************************************************/
 bool Video::display_video(void)
 {
+#ifdef JETSON_B01
+
     // render output_vid_disp to the display
     if (output_vid_disp != NULL)
     {
@@ -269,6 +375,17 @@ bool Video::display_video(void)
         }
     }
 
+#elif _WIN32
+
+    cv::imshow("MyVid", image);
+    cv::waitKey(1);
+
+#else
+
+
+
+#endif // JETSON_B01
+
     return true;
 }
 
@@ -278,8 +395,20 @@ bool Video::display_video(void)
  ********************************************************************************/
 void Video::calc_video_res(void)
 {
+#ifdef JETSON_B01
+
     input_video_width = input->GetWidth();
     input_video_height = input->GetHeight();
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -288,7 +417,20 @@ void Video::calc_video_res(void)
  ********************************************************************************/
 void Video::delete_input_video_stream(void)
 {
+#ifdef JETSON_B01
+
     SAFE_DELETE(input);
+    
+#elif _WIN32
+
+    cap.release(); // Release the webcam
+    cv::destroyAllWindows();
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -297,7 +439,19 @@ void Video::delete_input_video_stream(void)
  ********************************************************************************/
 void Video::delete_video_file_stream(void)
 {
+#ifdef JETSON_B01
+
     SAFE_DELETE(output_vid_file);
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -306,7 +460,19 @@ void Video::delete_video_file_stream(void)
  ********************************************************************************/
 void Video::delete_video_display_stream(void)
 {
+#ifdef JETSON_B01
+
     SAFE_DELETE(output_vid_disp);
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -315,12 +481,24 @@ void Video::delete_video_display_stream(void)
  ********************************************************************************/
 bool Video::video_output_file_reset(void)
 {
+#ifdef JETSON_B01
+
     delete_video_file_stream();
 
     if (!create_output_vid_stream())
     {
         return false;
     }
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 
     return true;
 }
@@ -333,6 +511,10 @@ bool Video::video_output_file_reset(void)
 bool Video::video_init(void)
 {
     valid_image_rcvd = false;
+    
+
+#ifdef JETSON_B01
+
     image = NULL;
 
 #ifdef DEBUG_BUILD
@@ -354,6 +536,33 @@ bool Video::video_init(void)
 
 #endif // DEBUG_BUILD
 
+#elif _WIN32
+
+#ifdef DEBUG_BUILD
+
+    if (!create_input_video_stream() ||
+        !create_output_vid_stream() ||
+        !create_display_video_stream())
+    {
+        return false;
+}
+
+#else
+
+    if (!create_input_video_stream() ||
+        !create_output_vid_stream())
+    {
+        return false;
+    }
+
+#endif // DEBUG_BUILD
+
+#else
+
+
+
+#endif // JETSON_B01
+
     calc_video_res();
 
     return true;
@@ -374,6 +583,7 @@ void Video::video_proc_loop(void)
  ********************************************************************************/
 void Video::video_output_loop(void)
 {
+#ifdef JETSON_B01
 
 #ifdef DEBUG_BUILD
 
@@ -395,6 +605,16 @@ void Video::video_output_loop(void)
     }
 
 #endif // DEBUG_BUILD
+
+#elif _WIN32
+
+    display_video();
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -403,6 +623,8 @@ void Video::video_output_loop(void)
  ********************************************************************************/
 void Video::shutdown(void)
 {
+#ifdef JETSON_B01
+
     LogVerbose("video:  shutting down...\n");
     delete_input_video_stream();
     delete_video_file_stream();
@@ -414,6 +636,16 @@ void Video::shutdown(void)
 #endif // DEBUG_BUILD
 
     LogVerbose("video:  shutdown complete.\n");
-}
+
+#elif _WIN32
+
+
+
+#else
+
+
 
 #endif // JETSON_B01
+}
+
+#endif // ENABLE_CV

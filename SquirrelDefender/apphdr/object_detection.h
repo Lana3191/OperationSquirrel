@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef JETSON_B01
+#ifdef ENABLE_CV
 
 /********************************************************************************
  * @file    object_detection.h
@@ -14,27 +14,74 @@
  * Includes
  ********************************************************************************/
 #include "common_inc.h"
+#include "video_IO.h"
+#include "parameters.h"
+
+#ifdef JETSON_B01
+
 #include "jetson-utils/videoSource.h"
 #include "jetson-utils/videoOutput.h"
 #include "jetson-inference/detectNet.h"
 #include "jetson-inference/objectTracker.h"
 #include <jetson-inference/objectTrackerIOU.h>
-#include "video_IO.h"
-#include "parameters.h"
+
+#elif _WIN32
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/dnn.hpp>
+#include <vector>
+#include <string>
+#include <fstream>
+
+#else
+
+
+
+#endif // JETSON_B01
+
+
 
 /********************************************************************************
  * Imported objects
  ********************************************************************************/
+#ifdef JETSON_B01
+
 extern videoSource *input;
 extern uchar3 *image;
 extern uint32_t input_video_width;
 extern uint32_t input_video_height;
 
+#elif _WIN32
+
+extern cv::Mat image;
+extern float input_video_width;
+extern float input_video_height;
+
+#else
+
+
+
+#endif // JETSON_B01
+
 /********************************************************************************
  * Exported objects
  ********************************************************************************/
+#ifdef JETSON_B01
+
 extern detectNet *net;
 extern detectNet::Detection *detections;
+
+#elif _WIN32
+
+extern cv::dnn::Net net;
+extern std::vector<cv::Mat> detections;
+
+#else
+
+
+
+#endif // JETSON_B01
+
 extern int numDetections;
 
 /********************************************************************************
@@ -74,4 +121,4 @@ private:
 
 #endif // OBJECT_DETECTION_H
 
-#endif // JETSON_B01
+#endif // ENABLE_CV

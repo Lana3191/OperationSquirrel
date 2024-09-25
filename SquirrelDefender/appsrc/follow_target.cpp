@@ -1,4 +1,4 @@
-#ifdef JETSON_B01
+#ifdef ENABLE_CV
 
 /********************************************************************************
  * @file    follow_target.cpp
@@ -187,15 +187,15 @@ void Follow::get_desired_target_size(void)
 
     Parameters target_params("../params.json");
 
-    x_desired = static_cast<float>(input_video_height) / 2.0;
-    y_desired = static_cast<float>(input_video_width) / 2.0;
+    x_desired = 0.0;//static_cast<float>(input_video_height) / 2.0;
+    y_desired = 0.0;//static_cast<float>(input_video_width) / 2.0;
     target_height_desired = target_params.get_float_param("Target", "Desired_Height");
     target_width_desired = target_params.get_float_param("Target", "Desired_Width");
 
 #else
 
-    x_desired = static_cast<float>(input_video_height) / 2.0;
-    y_desired = static_cast<float>(input_video_width) / 2.0;
+    x_desired = 0.0;// static_cast<float>(input_video_height) / 2.0;
+    y_desired = 0.0;//static_cast<float>(input_video_width) / 2.0;
     target_height_desired = (float)650;
     target_width_desired = (float)150;
     vehicle_height_desired = 150;
@@ -209,12 +209,12 @@ void Follow::get_desired_target_size(void)
  ********************************************************************************/
 void Follow::calc_target_size(int n)
 {
-    x_actual = detections[n].Height() / 2.0 + detections[n].Top;
-    height_actual = detections[n].Height();
-    y_actual = detections[n].Width() / 2.0 + detections[n].Left;
-    width_actual = detections[n].Width();
-    target_left_side = detections[n].Left;
-    target_right_side = detections[n].Right;
+    x_actual = 0.0;// detections[n].Height() / 2.0 + detections[n].Top;
+    height_actual = 0.0;//detections[n].Height();
+    y_actual = 0.0;//detections[n].Width() / 2.0 + detections[n].Left;
+    width_actual = 0.0;//detections[n].Width();
+    target_left_side = 0.0;//detections[n].Left;
+    target_right_side = 0.0;//detections[n].Right;
 }
 
 /********************************************************************************
@@ -261,6 +261,7 @@ void Follow::calc_follow_error(void)
  ********************************************************************************/
 int Follow::dtrmn_target_ID(void)
 {
+    /*
     for (int n = 0; n < numDetections; n++)
     {
         if (detections[n].TrackID >= 0 && detections[n].ClassID == 1 && detections[n].Confidence > 0.5)
@@ -272,7 +273,7 @@ int Follow::dtrmn_target_ID(void)
         {
             target_identified = false;
         }
-    }
+    }*/
 
     return -1;
 }
@@ -353,4 +354,4 @@ void Follow::follow_control_loop(void)
     }
 }
 
-#endif // JETSON_B01
+#endif // ENABLE_CV

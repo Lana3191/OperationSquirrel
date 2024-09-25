@@ -1,3 +1,5 @@
+#ifdef JETSON_B01
+
 /********************************************************************************
  * @file    datalog.cpp
  * @author  Cameron Rose
@@ -369,3 +371,5 @@ void DataLogger::data_log_loop(void)
 
     save_to_csv(file_name, data);
 }
+
+#endif // JETSON_B01

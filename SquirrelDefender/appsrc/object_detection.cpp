@@ -1,4 +1,4 @@
-#ifdef JETSON_B01
+#ifdef ENABLE_CV
 
 /********************************************************************************
  * @file    target_tracking.cpp
@@ -24,17 +24,170 @@
 /********************************************************************************
  * Object definitions
  ********************************************************************************/
+#ifdef JETSON_B01
+
 detectNet *net;
 detectNet::Detection *detections;
+
+#elif _WIN32
+
+cv::dnn::Net net;
+std::vector<std::string> class_list;
+std::vector<cv::Mat> detections;
+
+#else
+
+
+
+#endif // JETSON_B01
+
 int numDetections;
 
 /********************************************************************************
  * Calibration definitions
  ********************************************************************************/
+#ifdef JETSON_B01
+
+// Nothing to add
+
+#elif _WIN32
+
+ // Constants.
+const float INPUT_WIDTH = 640.0;
+const float INPUT_HEIGHT = 640.0;
+const float SCORE_THRESHOLD = 0.5;
+const float NMS_THRESHOLD = 0.45;
+const float CONFIDENCE_THRESHOLD = 0.45;
+
+// Text parameters.
+const float FONT_SCALE = 0.7;
+const int FONT_FACE = cv::FONT_HERSHEY_SIMPLEX;
+const int THICKNESS = 1;
+
+// Colors.
+cv::Scalar BLACK = cv::Scalar(0, 0, 0);
+cv::Scalar BLUE = cv::Scalar(255, 178, 50);
+cv::Scalar YELLOW = cv::Scalar(0, 255, 255);
+cv::Scalar RED = cv::Scalar(0, 0, 255);
+
+#else
+
+
+
+#endif // JETSON_B01
 
 /********************************************************************************
  * Function definitions
  ********************************************************************************/
+
+#ifdef _WIN32
+
+void draw_label(cv::Mat& input, std::string label, int left, int top)
+{
+    // Display the label at the top of the bounding box.
+    int baseLine;
+    cv::Size label_size = cv::getTextSize(label, FONT_FACE, FONT_SCALE, THICKNESS, &baseLine);
+    top = std::max(top, label_size.height);
+    // Top left corner.
+    cv::Point tlc = cv::Point(left, top);
+    // Bottom right corner.
+    cv::Point brc = cv::Point(left + label_size.width, top + label_size.height + baseLine);
+    // Draw white rectangle.
+    cv::rectangle(input, tlc, brc, BLACK, cv::FILLED);
+    // Put the label on the black rectangle.
+    cv::putText(input, label, cv::Point(left, top + label_size.height), FONT_FACE, FONT_SCALE, YELLOW, THICKNESS);
+}
+
+std::vector<cv::Mat> pre_process(cv::Mat& input, cv::dnn::Net& net)
+{
+    // Convert to blob.
+    cv::Mat blob;
+    cv::dnn::blobFromImage(input, blob, 1. / 255., cv::Size(INPUT_WIDTH, INPUT_HEIGHT), cv::Scalar(), true, false);
+
+    net.setInput(blob);
+
+    // Forward propagate.
+    std::vector<cv::Mat> outputs;
+    net.forward(outputs, net.getUnconnectedOutLayersNames());
+
+    return outputs;
+}
+
+cv::Mat post_process(cv::Mat& input, std::vector<cv::Mat>& outputs, const std::vector<std::string>& class_name)
+{
+    // Initialize vectors to hold respective outputs while unwrapping detections.
+    std::vector<int> class_ids;
+    std::vector<float> confidences;
+    std::vector<cv::Rect> boxes;
+    // Resizing factor.
+    float x_factor = input.cols / INPUT_WIDTH;
+    float y_factor = input.rows / INPUT_HEIGHT;
+    float* data = (float*)outputs[0].data;
+    const int dimensions = 85;
+    // 25200 for default size 640.
+    const int rows = 25200;
+    // Iterate through 25200 detections.
+    for (int i = 0; i < rows; ++i)
+    {
+        float confidence = data[4];
+        // Discard bad detections and continue.
+        if (confidence >= CONFIDENCE_THRESHOLD)
+        {
+            float* classes_scores = data + 5;
+            // Create a 1x85 Mat and store class scores of 80 classes.
+            cv::Mat scores(1, class_name.size(), CV_32FC1, classes_scores);
+            // Perform minMaxLoc and acquire the index of best class score.
+            cv::Point class_id;
+            double max_class_score;
+            cv::minMaxLoc(scores, 0, &max_class_score, 0, &class_id);
+            // Continue if the class score is above the threshold.
+            if (max_class_score > SCORE_THRESHOLD)
+            {
+                // Store class ID and confidence in the pre-defined respective vectors.
+                confidences.push_back(confidence);
+                class_ids.push_back(class_id.x);
+                // Center.
+                float cx = data[0];
+                float cy = data[1];
+                // Box dimension.
+                float w = data[2];
+                float h = data[3];
+                // Bounding box coordinates.
+                int left = int((cx - 0.5 * w) * x_factor);
+                int top = int((cy - 0.5 * h) * y_factor);
+                int width = int(w * x_factor);
+                int height = int(h * y_factor);
+                // Store good detections in the boxes vector.
+                boxes.push_back(cv::Rect(left, top, width, height));
+            }
+        }
+        // Jump to the next row.
+        data += 85;
+    }
+
+    // Perform Non-Maximum Suppression and draw predictions.
+    std::vector<int> indices;
+    cv::dnn::NMSBoxes(boxes, confidences, SCORE_THRESHOLD, NMS_THRESHOLD, indices);
+    for (int i = 0; i < indices.size(); i++)
+    {
+        int idx = indices[i];
+        cv::Rect box = boxes[idx];
+        int left = box.x;
+        int top = box.y;
+        int width = box.width;
+        int height = box.height;
+        // Draw bounding box.
+        cv::rectangle(input, cv::Point(left, top), cv::Point(left + width, top + height), BLUE, 3 * THICKNESS);
+        // Get the label for the class name and its confidence.
+        std::string label = cv::format("%.2f", confidences[idx]);
+        label = class_name[class_ids[idx]] + ":" + label;
+        // Draw class labels.
+        draw_label(input, label, left, top);
+    }
+    return input;
+}
+
+#endif // _WIN32
 
 /********************************************************************************
  * Function: Detection
@@ -54,6 +207,8 @@ Detection::~Detection(void) {};
  ********************************************************************************/
 bool Detection::create_detection_network(void)
 {
+#ifdef JETSON_B01
+
 #ifdef DEBUG_BUILD
 
     Parameters detection_params("../params.json");
@@ -93,6 +248,28 @@ bool Detection::create_detection_network(void)
         return false;
     }
 
+#elif _WIN32
+
+    // Load class list.
+    std::ifstream ifs("../../networks/yolov5m/coco.names");
+    std::string line;
+
+    while (std::getline(ifs, line))
+    {
+        class_list.push_back(line);
+    }
+
+    // Load model and enable GPU processing
+    net = cv::dnn::readNet("../../networks/yolov5m/yolov5m.onnx");
+    net.setPreferableBackend(cv::dnn::DNN_BACKEND_CUDA);
+    net.setPreferableTarget(cv::dnn::DNN_TARGET_CUDA);
+
+#else
+
+
+
+#endif // JETSON_B01
+
     return true;
 }
 
@@ -102,6 +279,8 @@ bool Detection::create_detection_network(void)
  ********************************************************************************/
 void Detection::detect_objects(void)
 {
+#ifdef JETSON_B01
+
     uint32_t overlay_flags = 0;
 
     overlay_flags = overlay_flags | detectNet::OVERLAY_LABEL | detectNet::OVERLAY_CONFIDENCE | detectNet::OVERLAY_TRACKING | detectNet::OVERLAY_LINES;
@@ -118,6 +297,16 @@ void Detection::detect_objects(void)
     {
         // No other options
     }
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -126,6 +315,8 @@ void Detection::detect_objects(void)
  ********************************************************************************/
 void Detection::get_object_info(void)
 {
+#ifdef JETSON_B01
+
     if (numDetections > 0)
     {
         // LogVerbose("%i objects detected\n", numDetections);
@@ -136,6 +327,16 @@ void Detection::get_object_info(void)
             float boxHeight = detections[n].Height();
         }
     }
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -144,6 +345,8 @@ void Detection::get_object_info(void)
  ********************************************************************************/
 void Detection::print_object_info(void)
 {
+#ifdef JETSON_B01
+
     if (numDetections > 0)
     {
         LogVerbose("%i objects detected\n", numDetections);
@@ -164,6 +367,16 @@ void Detection::print_object_info(void)
             }
         }
     }
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -172,7 +385,19 @@ void Detection::print_object_info(void)
  ********************************************************************************/
 void Detection::print_performance_stats(void)
 {
+#ifdef JETSON_B01
+
     net->PrintProfilerTimes();
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -181,7 +406,19 @@ void Detection::print_performance_stats(void)
  ********************************************************************************/
 void Detection::delete_tracking_net(void)
 {
+#ifdef JETSON_B01
+
     SAFE_DELETE(net);
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -190,6 +427,8 @@ void Detection::delete_tracking_net(void)
  ********************************************************************************/
 int Detection::print_usage(void)
 {
+#ifdef JETSON_B01
+
     PrintPass::c_printf("usage: detectnet [--help] [--network=NETWORK] [--threshold=THRESHOLD] ...\n");
     PrintPass::c_printf("                 input [output]\n\n");
     PrintPass::c_printf("Locate objects in a video/image stream using an object detection DNN.\n");
@@ -204,6 +443,16 @@ int Detection::print_usage(void)
     PrintPass::c_printf("%s", videoOutput::Usage());
     PrintPass::c_printf("%s", Log::Usage());
 
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
+
     return 0;
 }
 
@@ -213,8 +462,32 @@ int Detection::print_usage(void)
  ********************************************************************************/
 void Detection::detection_loop(void)
 {
+#ifdef JETSON_B01
+
     detect_objects();
     get_object_info();
+
+#elif _WIN32
+
+    detections = pre_process(image, net);
+    image = post_process(image, detections, class_list);
+
+    // Put efficiency information.
+    std::vector<double> layersTimes;
+    double freq = cv::getTickFrequency() / 1000;
+    double t = net.getPerfProfile(layersTimes) / freq;
+    std::string label = cv::format("Inference time : %.2f ms", t);
+
+    cv::putText(image, label, cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 1);
+
+    // Show output.
+    //cv::imshow("MyVid", image);
+
+#else
+
+
+
+#endif // JETSON_B01
 }
 
 /********************************************************************************
@@ -223,9 +496,21 @@ void Detection::detection_loop(void)
  ********************************************************************************/
 bool Detection::detection_net_init(void)
 {
+#ifdef JETSON_B01
+
     net = NULL;
     detections = NULL;
     numDetections = 0;
+
+#elif _WIN32
+
+
+
+#else
+
+
+
+#endif // JETSON_B01
 
     if (!create_detection_network())
     {
@@ -242,9 +527,21 @@ bool Detection::detection_net_init(void)
  ********************************************************************************/
 void Detection::shutdown(void)
 {
+#ifdef JETSON_B01
+
     LogVerbose("detectnet:  shutting down...\n");
     Detection::delete_tracking_net();
     LogVerbose("detectnet:  shutdown complete.\n");
-}
+
+#elif _WIN32
+
+
+
+#else
+
+
 
 #endif // JETSON_B01
+}
+
+#endif // ENABLE_CV

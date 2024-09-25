@@ -163,7 +163,7 @@ void VehicleController::vehicle_control_loop(void)
     }
     else if (system_state == SYSTEM_STATE::IN_FLIGHT_GOOD)
     {
-#ifdef JETSON_B01 || WIN32_HARD
+#ifdef ENABLE_CV
 
         if (takeoff_dbc_cnt > 0)
         {
@@ -180,7 +180,7 @@ void VehicleController::vehicle_control_loop(void)
             // follow_mode();
         }
 
-#elif WSL || WIN32_SIM
+#else
 
         if (takeoff_dbc_cnt > 0)
         {
@@ -197,7 +197,7 @@ void VehicleController::vehicle_control_loop(void)
             // test_flight();
         }
 
-#endif // JETSON_B01
+#endif // ENABLE_CV
     }
 }
 

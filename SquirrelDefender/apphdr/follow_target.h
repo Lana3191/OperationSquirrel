@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef JETSON_B01
+#ifdef ENABLE_CV
 
 /********************************************************************************
  * @file    follow_target.h
@@ -25,12 +25,27 @@
 /********************************************************************************
  * Imported objects
  ********************************************************************************/
+#ifdef JETSON_B01
+
 extern detectNet *net;
 extern detectNet::Detection *detections;
 extern videoSource *input;
-extern int numDetections;
 extern uint32_t input_video_width;
 extern uint32_t input_video_height;
+
+#elif _WIN32
+
+extern float input_video_width;
+extern float input_video_height;
+
+#else
+
+#error "Please define the intended build target."
+
+#endif // JETSON_B01
+
+extern int numDetections;
+
 extern uint16_t mav_veh_rngfdr_min_distance;
 extern uint16_t mav_veh_rngfdr_max_distance;
 extern uint16_t mav_veh_rngfdr_current_distance;
@@ -81,4 +96,4 @@ private:
 
 #endif // FOLLOW_TARGET_H
 
-#endif // JETSON_B01
+#endif // ENABLE_CV

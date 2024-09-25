@@ -18,10 +18,12 @@
 #include "vehicle_controller.h"
 
 #ifdef JETSON_B01
+
 #include "video_IO.h"
 #include "object_detection.h"
 #include <jsoncpp/json/json.h> //sudo apt-get install libjsoncpp-dev THEN target_link_libraries(your_executable_name jsoncpp)
 #include "follow_target.h"
+
 #endif // JETSON_B01
 
 /********************************************************************************
@@ -91,7 +93,15 @@ int SystemController::system_init(void)
         return 1;
     }
 
-#elif WIN32_HARD
+#elif _WIN32 && ENABLE_CV
+
+    if (!Video::video_init() ||
+        !Detection::detection_net_init())
+    {
+        return 1;
+    }
+
+#else
 
     if (!MavMsg::mav_comm_init() ||
         /* !DataLogger::data_log_init() || */
@@ -123,15 +133,15 @@ int SystemController::system_state_machine(void)
         bool mav_type_is_quad = (mav_veh_type == MAV_TYPE_QUADROTOR && mav_veh_autopilot_type == MAV_AUTOPILOT_ARDUPILOTMEGA);
         bool prearm_checks = false;
 
-#ifdef JETSON_B01 || WIN32_HARD
+#ifdef ENABLE_CV
 
         prearm_checks = ((mav_veh_sys_stat_onbrd_cntrl_snsrs_present & MAV_SYS_STATUS_PREARM_CHECK) != 0 && valid_image_rcvd);
 
-#elif WSL || WIN32_SIM
+#else
 
         prearm_checks = ((mav_veh_sys_stat_onbrd_cntrl_snsrs_present & MAV_SYS_STATUS_PREARM_CHECK) != 0);
 
-#endif // JETSON_B01
+#endif // ENABLE_CV
 
         // Switch case determines how we transition from one state to another
         switch (system_state)
@@ -230,6 +240,14 @@ void SystemController::system_shutdown(void)
 
     Video::shutdown();
     Detection::shutdown();
+
+#elif _WIN32 && ENABLE_CV
+
+
+
+#else
+
+    // Nothing to shutdown
 
 #endif // JETSON_B01
 

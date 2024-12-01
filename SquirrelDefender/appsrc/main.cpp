@@ -1,7 +1,7 @@
 /********************************************************************************
  * @file    main.cpp
- * @author  Cameron Rose
- * @date    6/7/2024
+ * @author  Lana Lewis
+ * @date    12/1/2024
  * @brief   Main entry point for the program, contains the loop functions for 
             each software component.
  ********************************************************************************/
